@@ -1,32 +1,64 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { RunnableSequence } from "@langchain/core/runnables";
-import { z } from "zod";
+import { StringOutputParser } from "@langchain/core/output_parsers";
 
-// Define the output schema using Zod
-const OutputSchema = z.object({
-  summary: z
-    .string()
-    .describe("A concise summary of what the repository is about"),
-  coolFacts: z
-    .array(z.string())
-    .describe("List of interesting technical details or notable features"),
-});
+// Create the prompt template with a simpler structure
+const prompt =
+  PromptTemplate.fromTemplate(`You are a GitHub repository analyzer. Analyze the following README content and provide a summary.
 
-// Create the prompt template
-const prompt = PromptTemplate.fromTemplate(
-  "Analyze the following GitHub repository README content and provide a structured summary.\n\n" +
-    "README Content:\n{readmeContent}\n\n" +
-    "Provide a concise summary of the repository and extract interesting facts or features.\n" +
-    "The summary should give an overview of what the repository is about.\n" +
-    "The cool facts should be a list of interesting technical details, unique features, or notable aspects."
-);
+README Content:
+{readmeContent}
 
-// Initialize the model with structured output
+Format your response as a JSON object with:
+1. A "summary" field containing a concise overview
+2. A "coolFacts" array listing interesting technical details
+
+Keep your response focused and ensure it is valid JSON.`);
+
+// Initialize the model
 const model = new ChatOpenAI({
   modelName: "gpt-3.5-turbo",
   temperature: 0.7,
-}).withStructuredOutput(OutputSchema);
+}).bind({
+  response_format: { type: "json_object" },
+});
+
+// Custom parser to handle the response
+const customParser = {
+  parse: async (text) => {
+    try {
+      console.log("📝 Raw response:", text);
+
+      // Handle different response formats
+      let content;
+      if (typeof text === "object" && text.content) {
+        content = text.content;
+      } else if (typeof text === "string") {
+        content = text;
+      } else {
+        throw new Error("Unexpected response format");
+      }
+
+      // Parse the JSON content
+      const parsed = JSON.parse(content);
+      console.log("✅ Successfully parsed JSON:", parsed);
+
+      // Validate the structure
+      if (!parsed.summary || !Array.isArray(parsed.coolFacts)) {
+        throw new Error("Invalid response structure");
+      }
+
+      return parsed;
+    } catch (error) {
+      console.error("❌ Parsing error:", error);
+      return {
+        summary: "Failed to parse repository content",
+        coolFacts: ["Error processing repository details"],
+      };
+    }
+  },
+};
 
 // Create the chain
 export const createSummaryChain = () => {
@@ -36,6 +68,7 @@ export const createSummaryChain = () => {
     },
     prompt,
     model,
+    customParser,
   ]);
 };
 

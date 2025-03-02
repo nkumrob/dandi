@@ -16,14 +16,6 @@ Format your response as a JSON object with:
 
 Keep your response focused and ensure it is valid JSON.`);
 
-// Initialize the model
-const model = new ChatOpenAI({
-  modelName: "gpt-3.5-turbo",
-  temperature: 0.7,
-}).bind({
-  response_format: { type: "json_object" },
-});
-
 // Custom parser to handle the response
 const customParser = {
   parse: async (text) => {
@@ -62,6 +54,14 @@ const customParser = {
 
 // Create the chain
 export const createSummaryChain = () => {
+  // Initialize the model inside the function
+  const model = new ChatOpenAI({
+    modelName: "gpt-3.5-turbo",
+    temperature: 0.7,
+  }).bind({
+    response_format: { type: "json_object" },
+  });
+
   return RunnableSequence.from([
     {
       readmeContent: (input) => input.readmeContent,
@@ -75,6 +75,10 @@ export const createSummaryChain = () => {
 // Helper function to run the chain
 export async function summarizeRepository(readmeContent) {
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not found in environment variables");
+    }
+
     console.log("🔄 Creating summary chain");
     const chain = createSummaryChain();
 

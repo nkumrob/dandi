@@ -17,8 +17,18 @@ async function validateApiKey(apiKey) {
 
 export async function POST(request) {
   try {
-    // Extract API key and GitHub URL from request body
-    const { apiKey, githubUrl } = await request.json();
+    // Get API key from header
+    const apiKey = request.headers.get("x-api-key");
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "API key is required in x-api-key header" },
+        { status: 401 }
+      );
+    }
+
+    // Extract GitHub URL from request body
+    const { githubUrl } = await request.json();
 
     // Validate the API key
     const isValidKey = await validateApiKey(apiKey);

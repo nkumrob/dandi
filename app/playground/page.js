@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Toast } from "../components/Toast";
+import { chatModel, researchPrompt } from "@/lib/langchain";
 
 export default function PlaygroundPage() {
   // State management for form, loading state, and toast notifications
@@ -9,6 +10,8 @@ export default function PlaygroundPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState({ message: "", type: "positive" });
   const router = useRouter();
+  const [result, setResult] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Helper function to show toast messages
   const showToast = (message, type) => {
@@ -50,6 +53,19 @@ export default function PlaygroundPage() {
       showToast(error.message, "negative");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const analyzeResearch = async (topic) => {
+    try {
+      setIsLoading(true);
+      const formattedPrompt = await researchPrompt.format({ topic });
+      const response = await chatModel.invoke(formattedPrompt);
+      setResult(response);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
